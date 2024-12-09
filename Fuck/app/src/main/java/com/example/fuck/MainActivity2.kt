@@ -42,47 +42,6 @@ class MainActivity2 : AppCompatActivity(), FaceContourDetectorProcessor.FaceCont
 
     private fun init(){
         try {
-            mainBinding.buttonContinue.setOnClickListener {
-                //  mainBainding.cardview.visibility = View.VISIBLE
-                // mainBainding.previewView.visibility =View.GONE
-                //  mainBainding.faceOverlay.visibility = View.GONE
-                // mainBainding.buttonContinue.visibility =View.GONE
-                if(!isCameraOpen){
-                    isCameraOpen = true
-                    mainBinding.buttonContinue.text="Take Photo"
-                    if (mCameraManager != null) {
-                        mCameraManager?.startCamera()
-                    }
-                }else{
-                    isCameraOpen = false
-                    mainBinding.buttonContinue.text="Retake Photo"
-                    val file = File(cacheDir, "Selfie.jpg")
-                    file.createNewFile()
-
-                    //Convert bitmap to byte array
-                    val bos = ByteArrayOutputStream()
-                    mBitmap!!.compress(bitmapCompressFormat, 100, bos)
-                    val bitmapData = bos.toByteArray()
-
-                    //write the bytes in file
-                    val fos = FileOutputStream(file)
-                    fos.write(bitmapData)
-                    fos.flush()
-                    fos.close()
-                    val bmImg = flip(BitmapFactory.decodeFile(file.absolutePath))
-                    Glide.with(this)
-                        .asBitmap()
-                        .load(bmImg)
-                        .apply(RequestOptions().centerInside())
-                        .into(mainBinding.image)
-
-                    if (mCameraManager != null) {
-                        mCameraManager?.stopCamera()
-                    }
-                }
-
-            }
-
             orientationEventListener = object : OrientationEventListener(this, SensorManager.SENSOR_DELAY_UI) {
                 override fun onOrientationChanged(orientation: Int) {
                     try {
@@ -181,7 +140,6 @@ class MainActivity2 : AppCompatActivity(), FaceContourDetectorProcessor.FaceCont
             if (isPortraitMode) {
                 mainBinding.faceOverlay.border.color = Color.GREEN
                 mainBinding.faceOverlay.invalidate()
-                mainBinding.buttonContinue.isEnabled = true
 
                 mBitmap = originalCameraImage
             }
@@ -196,7 +154,6 @@ class MainActivity2 : AppCompatActivity(), FaceContourDetectorProcessor.FaceCont
             mainBinding.faceOverlay.border.color = Color.RED
             mainBinding.faceOverlay.invalidate()
             Log.e("no face detected", "no face detected")
-            mainBinding.buttonContinue.isEnabled =false
         } catch (e: Exception) {
             e.stackTrace
         }

@@ -45,16 +45,16 @@
 
 
 
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/button_continue"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:layout_gravity="bottom"
-            android:layout_margin="20dp"
-            android:enabled="true"
-            android:focusable="true"
-            android:textAllCaps="false"
-            android:text="Take photo" />
+<!--        <androidx.appcompat.widget.AppCompatButton-->
+<!--            android:id="@+id/button_continue"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="50dp"-->
+<!--            android:layout_gravity="bottom"-->
+<!--            android:layout_margin="20dp"-->
+<!--            android:enabled="true"-->
+<!--            android:focusable="true"-->
+<!--            android:textAllCaps="false"-->
+<!--            android:text="test" />-->
 
     </FrameLayout>
 </layout>
