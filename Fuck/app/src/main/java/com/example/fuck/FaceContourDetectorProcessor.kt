@@ -50,42 +50,65 @@ class FaceContourDetectorProcessor(
     ) {
         try {
             val trianglePaint = Paint().apply {
-                color = Color.BLUE;
-                style = Paint.Style.STROKE;
-                strokeWidth = 1f;
-            };
+                color = Color.BLUE
+                style = Paint.Style.STROKE
+                strokeWidth = 1f
+            }
 
-            val overlayWidth = graphicOverlay.width.toFloat();
-            val overlayHeight = graphicOverlay.height.toFloat();
-            val imageWidth = originalCameraImage?.width?.toFloat() ?: overlayWidth;
-            val imageHeight = originalCameraImage?.height?.toFloat() ?: overlayHeight;
+            val overlayWidth = graphicOverlay.width.toFloat()
+            val overlayHeight = graphicOverlay.height.toFloat()
+            val imageWidth = originalCameraImage?.width?.toFloat() ?: overlayWidth
+            val imageHeight = originalCameraImage?.height?.toFloat() ?: overlayHeight
 
-            val scaleX = overlayWidth / imageWidth;
-            val scaleY = overlayHeight / imageHeight;
+            val scaleX = overlayWidth / imageWidth
+            val scaleY = overlayHeight / imageHeight
+
+            val canvas = graphicOverlay.lockCanvas()
 
             for (faceMesh in results) {
                 faceMesh.allTriangles.forEach { triangle ->
-                    val (point1, point2, point3) = triangle.allPoints.map { it.position };
+                    val (point1, point2, point3) = triangle.allPoints.map { it.position }
 
-                    val globalScaler = 1.5f;
-                    val offset = 250;
+                    val globalScaler = 1.5f
+                    val offset = 250
 
-                    val x1 = overlayWidth - point1.x * scaleX * globalScaler + offset;
-                    val y1 = point1.y * scaleY;
-                    val x2 = overlayWidth - point2.x * scaleX * globalScaler + offset;
-                    val y2 = point2.y * scaleY;
-                    val x3 = overlayWidth - point3.x * scaleX * globalScaler + offset;
-                    val y3 = point3.y * scaleY;
+                    val x1 = overlayWidth - point1.x * scaleX * globalScaler + offset
+                    val y1 = point1.y * scaleY
+                    val x2 = overlayWidth - point2.x * scaleX * globalScaler + offset
+                    val y2 = point2.y * scaleY
+                    val x3 = overlayWidth - point3.x * scaleX * globalScaler + offset
+                    val y3 = point3.y * scaleY
 
-                    val canvas = graphicOverlay.lockCanvas();
-                    canvas.drawLine(x1, y1, x2, y2, trianglePaint);
-                    canvas.drawLine(x2, y2, x3, y3, trianglePaint);
-                    canvas.drawLine(x3, y3, x1, y1, trianglePaint);
-                    graphicOverlay.unlockCanvasAndPost(canvas);
+                    canvas.drawLine(x1, y1, x2, y2, trianglePaint)
+                    canvas.drawLine(x2, y2, x3, y3, trianglePaint)
+                    canvas.drawLine(x3, y3, x1, y1, trianglePaint)
                 }
+
+                val boundingBox = faceMesh.boundingBox
+                val croppedBitmap = Bitmap.createBitmap(
+                    originalCameraImage ?: continue,
+                    boundingBox.left.coerceAtLeast(0),
+                    boundingBox.top.coerceAtLeast(0),
+                    boundingBox.width().coerceAtMost(originalCameraImage!!.width - boundingBox.left),
+                    boundingBox.height().coerceAtMost(originalCameraImage.height - boundingBox.top)
+                )
+
+                val fixedWidth = 200
+                val fixedHeight = 300
+
+                val resizedBitmap = Bitmap.createScaledBitmap(
+                    croppedBitmap,
+                    fixedWidth,
+                    fixedHeight,
+                    false
+                )
+
+                canvas.drawBitmap(resizedBitmap, 20f, 20f, null)
             }
+
+            graphicOverlay.unlockCanvasAndPost(canvas)
         } catch (e: Exception) {
-            Log.e("Exception", e.localizedMessage ?: "Unknown error");
+            Log.e("Exception", e.localizedMessage ?: "Unknown error")
         }
     }
 
