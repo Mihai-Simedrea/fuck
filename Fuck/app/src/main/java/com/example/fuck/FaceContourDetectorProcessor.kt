@@ -1,14 +1,21 @@
 package com.example.fuck
 
+import android.content.res.Resources
 import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.Rect
 import android.util.Log
 import com.google.android.gms.tasks.Task
 import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.common.Triangle
 import com.google.mlkit.vision.face.Face
-import com.google.mlkit.vision.face.FaceDetection
-import com.google.mlkit.vision.face.FaceDetector
-import com.google.mlkit.vision.face.FaceDetectorOptions
+import com.google.mlkit.vision.facemesh.FaceMesh
+import com.google.mlkit.vision.facemesh.FaceMeshDetection
+import com.google.mlkit.vision.facemesh.FaceMeshDetector
+import com.google.mlkit.vision.facemesh.FaceMeshDetectorOptions
+import com.google.mlkit.vision.facemesh.FaceMeshPoint
 import java.io.IOException
+import android.graphics.Paint
 
 /**
  * Face Contour Demo.
@@ -16,10 +23,10 @@ import java.io.IOException
 class FaceContourDetectorProcessor(
     faceContourDetectorListener: FaceContourDetectorListener? = null,
     isShowDot: Boolean = false
-) : VisionProcessorBase<List<Face>>() {
+) : VisionProcessorBase<List<FaceMesh>>() {
 
 
-    private val detector: FaceDetector
+    private val detector: FaceMeshDetector
     private var mFaceContourDetectorListener: FaceContourDetectorListener? = null
     private var rotationMax = 12
     private var rotationMin = -12
@@ -32,13 +39,13 @@ class FaceContourDetectorProcessor(
     var bottom = 0F
 
     init {
-        val options = FaceDetectorOptions.Builder()
-            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
-            .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
-            .setContourMode(if (isShowDot) FaceDetectorOptions.CONTOUR_MODE_ALL else FaceDetectorOptions.CONTOUR_MODE_NONE)
-            .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
-            .setMinFaceSize(0.5f)
-            .build()
+//        val options = FaceDetectorOptions.Builder()
+//            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+//            .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
+//            .setContourMode(if (isShowDot) FaceDetectorOptions.CONTOUR_MODE_ALL else FaceDetectorOptions.CONTOUR_MODE_NONE)
+//            .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
+//            .setMinFaceSize(0.5f)
+//            .build()
 
         rotationMax = 12
         rotationMin = -12
@@ -46,7 +53,11 @@ class FaceContourDetectorProcessor(
         smiling = 0.0F
 
 
-        detector = FaceDetection.getClient(options)
+        detector = FaceMeshDetection.getClient(
+            FaceMeshDetectorOptions.Builder()
+                .build()
+        )
+
         mFaceContourDetectorListener = faceContourDetectorListener
     }
 
@@ -58,67 +69,64 @@ class FaceContourDetectorProcessor(
         }
     }
 
-    override fun detectInImage(image: InputImage): Task<List<Face>> {
+    override fun detectInImage(image: InputImage): Task<List<FaceMesh>> {
         return detector.process(image)
     }
 
     override fun onSuccess(
         originalCameraImage: Bitmap?,
-        faces: List<Face>,
+        results: List<FaceMesh>,
         graphicOverlay: OverlayView
     ) {
         try {
-            graphicOverlay.clear()
-            if(isFaceInsideRectangle(faces,graphicOverlay)) {
-                if (faces.isEmpty()) {
-                    mFaceContourDetectorListener?.onNoFaceDetected()
-                } else {
-                    if (isMlkit) {
-                        for (face in faces) {
-                            val rotY = face.headEulerAngleY // Head is rotated to the right rotY degrees
-                            val faceSmiling = face.smilingProbability
-                            if (rotY <= rotationMax && rotY >= rotationMin && (face.leftEyeOpenProbability
-                                    ?: 0.0f) > eye && (face.rightEyeOpenProbability
-                                    ?: 0.0f) > eye && (faceSmiling
-                                    ?: 0.0f) > smiling
-                            ) {
-                                originalCameraImage?.let {
-                                    Log.e("left1",""+face.boundingBox.left)
-                                    Log.e("left2",""+graphicOverlay.rectF.left)
-                                    Log.e("top1",""+face.boundingBox.top)
-                                    Log.e("top2",""+graphicOverlay.rectF.top)
-                                    Log.e("right1",""+face.boundingBox.right)
-                                    Log.e("right2",""+graphicOverlay.rectF.right)
-                                    Log.e("bottom1",""+face.boundingBox.bottom)
-                                    Log.e("bottom2",""+graphicOverlay.rectF.bottom)
-                                    var bitmap = extractFace(it,face.boundingBox.left.toInt(),face.boundingBox.top.toInt(),face.boundingBox.width(),face.boundingBox.height())
-                                    val imageWidth: Int = bitmap?.width?:0
-                                    val imageHeight: Int = bitmap?.height?:0
-                                    Log.e("width height", "$imageWidth $imageHeight")
-                                    /* var bitmap = extractFace(it,graphicOverlay.rectF.left.toInt(),
-                                         graphicOverlay.rectF.top.toInt(),
-                                         graphicOverlay.rectF.right.toInt()-graphicOverlay.rectF.left.toInt(),
-                                         graphicOverlay.rectF.bottom.toInt()-graphicOverlay.rectF.top.toInt())*/
-                                    bitmap?.let {
-                                        mFaceContourDetectorListener?.onCapturedFace(it)
-                                    }
-                                }
-                            } else {
-                                mFaceContourDetectorListener?.onNoFaceDetected()
-                            }
-                        }
-                    } else {
-                        originalCameraImage?.let { mFaceContourDetectorListener?.onCapturedFace(it) }
-                    }
-                }
-            }else{
-                mFaceContourDetectorListener?.onNoFaceDetected()
+            val trianglePaint = Paint().apply {
+                color = Color.BLUE
+                style = Paint.Style.STROKE
+                strokeWidth = 1f
             }
-            graphicOverlay.postInvalidate()
+
+            val overlayWidth = graphicOverlay.width.toFloat()
+            val overlayHeight = graphicOverlay.height.toFloat()
+
+            val imageWidth = originalCameraImage?.width?.toFloat() ?: overlayWidth
+            val imageHeight = originalCameraImage?.height?.toFloat() ?: overlayHeight
+
+            val scaleX = overlayWidth / imageWidth
+            val scaleY = overlayHeight / imageHeight
+
+            for (faceMesh in results) {
+                val triangles: List<Triangle<FaceMeshPoint>> = faceMesh.allTriangles
+                triangles.forEach { triangle ->
+                    val connectedPoints = triangle.allPoints
+
+                    val point1 = connectedPoints[0].position
+                    val point2 = connectedPoints[1].position
+                    val point3 = connectedPoints[2].position
+
+                    val global_scaler = 1.5f
+                    val offset = 250
+
+                    val x1 = overlayWidth - point1.x * scaleX * global_scaler + offset
+                    val y1 = point1.y * scaleY
+                    val x2 = overlayWidth - point2.x * scaleX * global_scaler + offset
+                    val y2 = point2.y * scaleY
+                    val x3 = overlayWidth - point3.x * scaleX * global_scaler + offset
+                    val y3 = point3.y * scaleY
+
+                    val canvas = graphicOverlay.lockCanvas()
+                    canvas.drawLine(x1, y1, x2, y2, trianglePaint)
+                    canvas.drawLine(x2, y2, x3, y3, trianglePaint)
+                    canvas.drawLine(x3, y3, x1, y1, trianglePaint)
+
+                    graphicOverlay.unlockCanvasAndPost(canvas)
+                }
+            }
         } catch (e: Exception) {
-            Log.e("Exception",""+e.localizedMessage)
+            Log.e("Exception", e.localizedMessage ?: "Unknown error")
         }
     }
+
+
 
     override fun onFailure(e: Exception) {
         try {

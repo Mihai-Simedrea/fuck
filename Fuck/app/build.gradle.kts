@@ -76,4 +76,6 @@ dependencies {
     implementation(libs.androidx.camera.extensions)
 
     implementation(libs.glide)
+
+    implementation(libs.face.mesh.detection)
 }

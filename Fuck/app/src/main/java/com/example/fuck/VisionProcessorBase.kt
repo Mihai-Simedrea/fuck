@@ -9,6 +9,7 @@ import androidx.camera.core.ImageProxy
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.TaskExecutors
 import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.facemesh.FaceMesh
 import java.nio.ByteBuffer
 
 abstract class VisionProcessorBase<T> : VisionImageProcessor {

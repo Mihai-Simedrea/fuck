@@ -13,7 +13,10 @@ import android.util.AttributeSet
 import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
-import com.example.fuck.GraphicOverlay.Graphic
+import com.google.mlkit.vision.facemesh.FaceMesh
+import dev.romainguy.kotlin.math.Float3
+import dev.romainguy.kotlin.math.Float4
+import dev.romainguy.kotlin.math.scale
 
 class OverlayPosition(var x: Float, var y: Float, var r: Float)
 
@@ -66,7 +69,7 @@ class OverlayView @JvmOverloads constructor(
         super.onDraw(canvas)
         synchronized(lock) {
             try {
-                updateTransformationIfNeeded()
+//                updateTransformationIfNeeded()
                /* for (graphic in graphics) {
                     graphic.draw(canvas)
                 }*/
@@ -77,28 +80,7 @@ class OverlayView @JvmOverloads constructor(
             configureBitmap()
         }
 
-
-        //draw background
         layer?.drawRect(0.0f, 0.0f, width.toFloat(), height.toFloat(), paint)
-        //draw hole
-      //  layer?.drawCircle((width / 2).toFloat(), (height / 3).toFloat(), 300f, border)
-
-        val centerX = width / 2
-        val centerY = height / 3
-        val radiusX = width / 2.8
-        val radiusY = height / 4
-
-        rectF.set(
-            (centerX - radiusX).toFloat(),
-            (centerY - radiusY).toFloat(),
-            (centerX + radiusX).toFloat(),
-            (centerY + radiusY).toFloat()
-        )
-        layer?.drawRoundRect(rectF, 180F, 180F,border)
-        layer?.drawRoundRect(rectF,180F, 180F, holePaint)
-
-      //  layer?.drawCircle((width / 2).toFloat(), (height / 3).toFloat(), 300f, holePaint)
-
         canvas.drawBitmap(bitmap!!, 0.0f, 0.0f, paint);
     }
 
@@ -123,6 +105,22 @@ class OverlayView @JvmOverloads constructor(
             needUpdateTransformation = true
         }
         postInvalidate()
+    }
+
+    fun lockCanvas(): Canvas {
+        // Create a new Bitmap for the layer if it doesn't exist
+        if (bitmap == null) {
+            configureBitmap()
+        }
+        return layer ?: throw IllegalStateException("Canvas layer not initialized.")
+    }
+
+    /**
+     * Unlocks the canvas and posts the changes.
+     */
+    fun unlockCanvasAndPost(canvas: Canvas) {
+        // Post the bitmap to the main canvas
+        invalidate() // Invalidate the view to force a redraw
     }
 
     private fun updateTransformationIfNeeded() {
@@ -156,7 +154,7 @@ class OverlayView @JvmOverloads constructor(
 
     init {
         //configure background color
-        val backgroundAlpha = 0.8
+        val backgroundAlpha = 0.5
         paint.color = ColorUtils.setAlphaComponent(context?.let {
             ContextCompat.getColor(
                 it,
@@ -164,16 +162,16 @@ class OverlayView @JvmOverloads constructor(
             )
         }!!, (255 * backgroundAlpha).toInt())
 
-        border.color = Color.RED
-        border.strokeWidth = 15F
-        border.style = Paint.Style.STROKE
-        border.isAntiAlias = true
-        border.isDither = true
-
-        //configure hole color & mode
-        holePaint.color = ContextCompat.getColor(context, android.R.color.transparent)
-
-        holePaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+//        border.color = Color.RED
+//        border.strokeWidth = 15F
+//        border.style = Paint.Style.STROKE
+//        border.isAntiAlias = true
+//        border.isDither = true
+//
+//        //configure hole color & mode
+//        holePaint.color = ContextCompat.getColor(context, android.R.color.transparent)
+//
+//        holePaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
     }
 
     fun add(graphic: Graphic) {
@@ -253,4 +251,44 @@ class OverlayView @JvmOverloads constructor(
         }
     }
 
+    class FaceMeshGraphic(overlay: OverlayView, private val faceMesh: FaceMesh) : Graphic(overlay) {
+        private val pointPaint: Paint = Paint().apply {
+            color = Color.RED
+            style = Paint.Style.FILL
+            strokeWidth = 5f
+        }
+
+        private val trianglePaint: Paint = Paint().apply {
+            color = Color.BLUE
+            style = Paint.Style.STROKE
+            strokeWidth = 2f
+        }
+
+        override fun draw(canvas: Canvas?) {
+            for (point in faceMesh.allPoints) {
+                val x = translateX(point.position.x)
+                val y = translateY(point.position.y)
+                canvas?.drawCircle(x, y, 5f, pointPaint)
+            }
+
+            for (triangle in faceMesh.allTriangles) {
+                val point1 = triangle.allPoints[0].position
+                val point2 = triangle.allPoints[1].position
+                val point3 = triangle.allPoints[2].position
+
+                val x1 = translateX(point1.x)
+                val y1 = translateY(point1.y)
+                val x2 = translateX(point2.x)
+                val y2 = translateY(point2.y)
+                val x3 = translateX(point3.x)
+                val y3 = translateY(point3.y)
+
+                canvas?.drawLine(x1, y1, x2, y2, trianglePaint)
+                canvas?.drawLine(x2, y2, x3, y3, trianglePaint)
+                canvas?.drawLine(x3, y3, x1, y1, trianglePaint)
+            }
+        }
+    }
+
 }
+
