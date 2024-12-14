@@ -31,6 +31,8 @@ class FaceContourDetectorProcessor(
     private var top = 0F;
     private var bottom = 0F;
 
+    private var lastDrawTime: Long = 0L;
+
     override fun stop() {
         try {
             detector.close();
@@ -84,26 +86,32 @@ class FaceContourDetectorProcessor(
                     canvas.drawLine(x3, y3, x1, y1, trianglePaint)
                 }
 
-                val boundingBox = faceMesh.boundingBox
-                val croppedBitmap = Bitmap.createBitmap(
-                    originalCameraImage ?: continue,
-                    boundingBox.left.coerceAtLeast(0),
-                    boundingBox.top.coerceAtLeast(0),
-                    boundingBox.width().coerceAtMost(originalCameraImage!!.width - boundingBox.left),
-                    boundingBox.height().coerceAtMost(originalCameraImage.height - boundingBox.top)
-                )
+                val currentTime = System.currentTimeMillis()
 
-                val fixedWidth = 200
-                val fixedHeight = 300
+                if (currentTime - lastDrawTime >= 10_000) {
+                    val boundingBox = faceMesh.boundingBox
+                    val croppedBitmap = Bitmap.createBitmap(
+                        originalCameraImage ?: continue,
+                        boundingBox.left.coerceAtLeast(0),
+                        boundingBox.top.coerceAtLeast(0),
+                        boundingBox.width().coerceAtMost(originalCameraImage!!.width - boundingBox.left),
+                        boundingBox.height().coerceAtMost(originalCameraImage.height - boundingBox.top)
+                    )
 
-                val resizedBitmap = Bitmap.createScaledBitmap(
-                    croppedBitmap,
-                    fixedWidth,
-                    fixedHeight,
-                    false
-                )
+                    val fixedWidth = 200
+                    val fixedHeight = 300
 
-                canvas.drawBitmap(resizedBitmap, 20f, 20f, null)
+                    val resizedBitmap = Bitmap.createScaledBitmap(
+                        croppedBitmap,
+                        fixedWidth,
+                        fixedHeight,
+                        false
+                    )
+
+                    canvas.drawBitmap(resizedBitmap, 20f, 20f, null)
+
+                    lastDrawTime = currentTime
+                }
             }
 
             graphicOverlay.unlockCanvasAndPost(canvas)
