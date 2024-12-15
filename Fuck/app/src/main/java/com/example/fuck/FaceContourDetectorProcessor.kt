@@ -14,6 +14,10 @@ import com.google.mlkit.vision.facemesh.FaceMeshDetector;
 import com.google.mlkit.vision.facemesh.FaceMeshDetectorOptions;
 import com.google.mlkit.vision.facemesh.FaceMeshPoint;
 import java.io.IOException;
+import android.graphics.Canvas
+import java.io.ByteArrayOutputStream
+import java.net.Socket
+
 
 /**
  * Face Contour Demo.
@@ -88,7 +92,7 @@ class FaceContourDetectorProcessor(
 
                 val currentTime = System.currentTimeMillis()
 
-                if (currentTime - lastDrawTime >= 10_000) {
+                if (currentTime - lastDrawTime >= 2_000) {
                     val boundingBox = faceMesh.boundingBox
                     val croppedBitmap = Bitmap.createBitmap(
                         originalCameraImage ?: continue,
@@ -107,6 +111,22 @@ class FaceContourDetectorProcessor(
                         fixedHeight,
                         false
                     )
+
+                    val byteArrayOutputStream = ByteArrayOutputStream()
+                    resizedBitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream)
+                    val imageBytes = byteArrayOutputStream.toByteArray()
+
+                    Thread {
+                        try {
+                            val socket = Socket("192.168.112.224", 12345)
+                            val outputStream = socket.getOutputStream()
+                            outputStream.write(imageBytes)
+                            outputStream.flush()
+                            socket.close()
+                        } catch (e: Exception) {
+                            Log.e("SocketError", e.message ?: "Unknown error")
+                        }
+                    }.start()
 
                     canvas.drawBitmap(resizedBitmap, 20f, 20f, null)
 
