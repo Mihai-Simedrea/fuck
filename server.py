@@ -1,9 +1,11 @@
 import socket
-from PIL import Image
-import io
+import cv2
+import numpy as np
+from fer import FER
 
 HOST = "0.0.0.0"
 PORT = 12345
+detector = FER(mtcnn=True)
 
 def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
@@ -24,10 +26,17 @@ def main():
                     data.extend(packet)
 
                 try:
-                    image = Image.open(io.BytesIO(data))
-                    image.show()
+                    nparr = np.frombuffer(data, np.uint8)
+                    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                    
+                    if image is not None:
+                        cv2.waitKey(1)
+                        result = detector.detect_emotions(image)
+                        print(result)
+                    else:
+                        print("Error decoding image")
                 except Exception as e:
-                    print(f"Error decoding image: {e}")
+                    print(f"Error: {e}")
 
 if __name__ == "__main__":
     main()
