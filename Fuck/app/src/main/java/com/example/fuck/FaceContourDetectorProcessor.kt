@@ -118,7 +118,7 @@ class FaceContourDetectorProcessor(
 
                     Thread {
                         try {
-                            val socket = Socket("192.168.112.224", 12345)
+                            val socket = Socket("192.168.175.132", 12345)
                             val outputStream = socket.getOutputStream()
                             outputStream.write(imageBytes)
                             outputStream.flush()
