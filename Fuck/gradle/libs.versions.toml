@@ -22,6 +22,8 @@ material = "1.10.0"
 activity = "1.9.2"
 constraintlayout = "2.1.4"
 databindingRuntime = "8.7.0"
+tensorflowLite = "2.12.0"
+tensorflowLiteSupport = "0.4.0"
 
 [libraries]
 androidx-appcompat-v170 = { module = "androidx.appcompat:appcompat", version.ref = "appcompatVersion" }
@@ -57,6 +59,8 @@ material = { group = "com.google.android.material", name = "material", version.r
 androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 androidx-databinding-runtime = { group = "androidx.databinding", name = "databinding-runtime", version.ref = "databindingRuntime" }
+tensorflow-lite = { module = "org.tensorflow:tensorflow-lite", version.ref = "tensorflowLite" }
+tensorflow-lite-support = { module = "org.tensorflow:tensorflow-lite-support", version.ref = "tensorflowLiteSupport" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

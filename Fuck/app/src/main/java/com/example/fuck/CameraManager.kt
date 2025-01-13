@@ -102,7 +102,7 @@ class CameraManager(
             if (imageProcessor != null) {
                 imageProcessor?.stop()
             }
-            imageProcessor = FaceContourDetectorProcessor(mFaceContourDetectorListener)
+            imageProcessor = FaceContourDetectorProcessor(context, mFaceContourDetectorListener)
             val builder = ImageAnalysis.Builder()
             imageAnalyzer = builder.setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build()
             needUpdateGraphicOverlayImageSourceInfo = true

@@ -78,4 +78,7 @@ dependencies {
     implementation(libs.glide)
 
     implementation(libs.face.mesh.detection)
+
+    implementation(libs.tensorflow.lite)
+    implementation(libs.tensorflow.lite.support)
 }
