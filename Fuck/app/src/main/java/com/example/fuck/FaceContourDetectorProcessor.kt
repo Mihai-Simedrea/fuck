@@ -6,27 +6,21 @@ import android.graphics.Paint;
 import android.util.Log;
 import com.google.android.gms.tasks.Task;
 import com.google.mlkit.vision.common.InputImage;
-import com.google.mlkit.vision.common.Triangle;
-import com.google.mlkit.vision.face.Face;
 import com.google.mlkit.vision.facemesh.FaceMesh;
-import com.google.mlkit.vision.facemesh.FaceMeshDetection;
 import com.google.mlkit.vision.facemesh.FaceMeshDetector;
 import com.google.mlkit.vision.facemesh.FaceMeshDetectorOptions;
-import com.google.mlkit.vision.facemesh.FaceMeshPoint;
+import com.google.mlkit.vision.facemesh.FaceMeshDetection;
+import android.graphics.Canvas;
+import org.tensorflow.lite.Interpreter;
+import java.io.ByteArrayOutputStream;
+import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import org.tensorflow.lite.support.common.FileUtil;
+import android.content.Context;
 import java.io.IOException;
-import android.graphics.Canvas
-import org.tensorflow.lite.Interpreter
-import java.io.ByteArrayOutputStream
-import java.net.Socket
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import org.tensorflow.lite.support.common.FileUtil
-import android.content.Context
+import java.io.OutputStream
 
-
-/**
- * Face Contour Demo.
- */
 class FaceContourDetectorProcessor(
     private val context: Context,
     private val faceContourDetectorListener: FaceContourDetectorListener? = null
@@ -42,14 +36,48 @@ class FaceContourDetectorProcessor(
     private var bottom = 0F;
 
     private var lastDrawTime: Long = 0L;
+    private var detectedEmotion: String = ""
+    private var focusText: String = ""
 
-    private var detectedEmotion: String = "";
+    private lateinit var socket: Socket
+    private lateinit var outputStream: OutputStream
+
+    init {
+        Thread {
+            try {
+                socket = Socket("192.168.60.224", 1235)
+                outputStream = socket.getOutputStream()
+                Log.d("Socket", "Connected to the server at 192.168.34.132")
+                receiveData()
+            } catch (e: Exception) {
+                Log.e("SocketError", e.message ?: "Unknown error during socket connection")
+            }
+        }.start()
+    }
+
+    private fun receiveData() {
+        try {
+            val buffer = ByteArray(1024)
+            while (true) {
+                val bytesRead = socket.getInputStream().read(buffer)
+                if (bytesRead > 0) {
+                    val receivedData = String(buffer, 0, bytesRead).trim()
+                    focusText = if (receivedData == "1") "focused" else "relaxed"
+                } else {
+                    break
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("SocketError", "Error receiving data: ${e.message}")
+        }
+    }
 
     override fun stop() {
         try {
-            detector.close();
+            detector.close()
+            socket.close()
         } catch (e: IOException) {
-            Log.e(TAG, "Exception thrown while trying to close Face Contour Detector: $e");
+            Log.e(TAG, "Exception thrown while trying to close Face Contour Detector: $e")
         }
     }
 
@@ -58,7 +86,7 @@ class FaceContourDetectorProcessor(
     }
 
     private fun preprocessBitmap(bitmap: Bitmap): ByteBuffer {
-        val inputBuffer = ByteBuffer.allocateDirect(1 * 48 * 48 * 1 * 4) // Assuming 48x48 grayscale
+        val inputBuffer = ByteBuffer.allocateDirect(1 * 48 * 48 * 1 * 4)
         inputBuffer.order(ByteOrder.nativeOrder())
 
         val intValues = IntArray(48 * 48)
@@ -146,9 +174,9 @@ class FaceContourDetectorProcessor(
                     }
 
                     if (probabilities[0] < probabilities[1]) {
-                        this.detectedEmotion = "Happy";
+                        this.detectedEmotion = "Happy"
                     } else {
-                        this.detectedEmotion = "Sad";
+                        this.detectedEmotion = "Sad"
                     }
 
                     val fixedWidth = 200
@@ -168,7 +196,7 @@ class FaceContourDetectorProcessor(
                     if (this.detectedEmotion == "Sad") {
                         Thread {
                             try {
-                                val socket = Socket("192.168.1.211", 12345)
+                                val socket = Socket("192.168.60.147", 12345)
                                 val outputStream = socket.getOutputStream()
                                 val left = boundingBox.left
                                 val top = boundingBox.top
@@ -176,7 +204,7 @@ class FaceContourDetectorProcessor(
                                 val bottom = boundingBox.bottom
 
                                 val message =
-                                    "{\"left\":$left,\"top\":$top,\"right\":$right,\"bottom\":$bottom}"
+                                    "{\"left\":$left,\"top\":$top,\"right\":$right,\"bottom\":$bottom,\"focusText\":\"$focusText\"}"
 
                                 outputStream.write(message.toByteArray())
 
@@ -211,6 +239,20 @@ class FaceContourDetectorProcessor(
                     yPosition,
                     textPaint
                 )
+
+                val focusTextPaint = Paint().apply {
+                    color = Color.WHITE
+                    textSize = 60f
+                    isAntiAlias = true
+                }
+
+                val focusTextYPosition = yPosition + textPaint.textSize + 40f
+                canvas.drawText(
+                    this.focusText,
+                    xPosition,
+                    focusTextYPosition,
+                    focusTextPaint
+                )
             }
 
             graphicOverlay.unlockCanvasAndPost(canvas)
@@ -220,52 +262,15 @@ class FaceContourDetectorProcessor(
     }
 
     override fun onFailure(e: Exception) {
-        Log.e(TAG, "Face detection failed: ${e.message}");
-    }
-
-    private fun translateX(x: Float, overlay: OverlayView): Float {
-        return if (overlay.isImageFlipped) {
-            overlay.width - (scale(x, overlay) - overlay.postScaleWidthOffset);
-        } else {
-            x - overlay.postScaleWidthOffset;
-        }
-    }
-
-    private fun translateY(y: Float, overlay: OverlayView): Float {
-        return scale(y, overlay) - overlay.postScaleHeightOffset;
-    }
-
-    private fun scale(imagePixel: Float, overlay: OverlayView): Float {
-        return imagePixel * overlay.scaleFactor;
-    }
-
-    fun isFaceInsideRectangle(faces: List<Face>, graphicOverlay: OverlayView): Boolean {
-        return try {
-            faces.any { face ->
-                val x = translateX(face.boundingBox.centerX().toFloat(), graphicOverlay);
-                val y = translateY(face.boundingBox.centerY().toFloat(), graphicOverlay);
-
-                left = x - scale(face.boundingBox.width() / 2.0f, graphicOverlay);
-                top = y - scale(face.boundingBox.height() / 2.0f, graphicOverlay);
-                right = x + scale(face.boundingBox.width() / 2.0f, graphicOverlay);
-                bottom = y + scale(face.boundingBox.height() / 2.0f, graphicOverlay);
-
-                left > graphicOverlay.rectF.left &&
-                        top > graphicOverlay.rectF.top &&
-                        bottom < graphicOverlay.rectF.bottom &&
-                        right < graphicOverlay.rectF.right;
-            };
-        } catch (e: Exception) {
-            false;
-        }
+        Log.e(TAG, "Face detection failed: ${e.message}")
     }
 
     companion object {
-        private const val TAG = "FaceContourDetectorProc";
+        private const val TAG = "FaceContourDetectorProc"
     }
 
     interface FaceContourDetectorListener {
-        fun onCapturedFace(originalCameraImage: Bitmap);
-        fun onNoFaceDetected();
+        fun onCapturedFace(originalCameraImage: Bitmap)
+        fun onNoFaceDetected()
     }
 }
